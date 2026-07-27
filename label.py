@@ -47,9 +47,18 @@ def label_faces(image_path):
             [point.x, point.y]
             for point in shape.parts()
         ])
+        #Need forehead points ASAP
+
+        #Use eye-to-brow distance as a face-relative "unit" so forehead points scale with
+        #face size/proportions instead of being sensitive to how flat or arched the brows are
+        eye_y = points[36:48, 1].mean()
+        brow_y = points[17:27, 1].mean()
+        unit = eye_y - brow_y
+        third_eye = [points[27][0], brow_y - 1.5 * unit]
+        left_temple = [points[19][0], brow_y - unit]
+        right_temple = [points[24][0], brow_y - unit]
+        points = np.vstack([points, [left_temple, right_temple, third_eye]]).astype(int)
 
         all_points.append(points)
 
     return all_points
-
-    
