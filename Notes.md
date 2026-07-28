@@ -1,6 +1,9 @@
 # face-morpher
 Deepmind here I come
 Ok so use CS 180 to figure out how to do this
+Additonal:
+https://learnopencv.com/face-morph-using-opencv-cpp-python/
+
 General understanding of the steps:
 
 1. Label the face with symmetrical points

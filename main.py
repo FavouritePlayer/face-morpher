@@ -4,6 +4,7 @@ import cv2
 import numpy as np
 from scipy.spatial import Delaunay
 
+from affine import solve_affine, warp_affine
 from crop import crop_images
 from label import label_faces
 
@@ -69,6 +70,37 @@ def warp_triangle(img_src, img_dst, tri_src, tri_dst):
     dst_slice[mask == 255] = warped[mask == 255]
 
 
+def warp_triangle_scratch(img_src, img_dst, tri_src, tri_dst):
+    #same as warp_triangle above, but using our own solve_affine/warp_affine from affine.py instead of cv2.getAffineTransform/cv2.warpAffine
+    tri_src = tri_src.astype(np.float32)
+    tri_dst = tri_dst.astype(np.float32)
+
+    #boundingRect still needs float32/int32 specifically, cv2 thing not ours
+    rect_src = cv2.boundingRect(tri_src)
+    rect_dst = cv2.boundingRect(tri_dst)
+
+    src_x, src_y, src_w, src_h = rect_src
+    dst_x, dst_y, dst_w, dst_h = rect_dst
+
+    #our solve_affine/warp_affine dont care about float32 specifically, so no
+    #need to recast back down to float32 after this subtraction like the cv2
+    #version has to
+    tri_src_rect = tri_src - [src_x, src_y]
+    tri_dst_rect = tri_dst - [dst_x, dst_y]
+
+    src_crop = img_src[src_y:src_y + src_h, src_x:src_x + src_w]
+
+    M = solve_affine(tri_src_rect, tri_dst_rect)
+    warped = warp_affine(src_crop, M, (dst_w, dst_h))
+
+    mask = np.zeros((dst_h, dst_w), dtype=np.uint8)
+    tri_dst_rect_int = tri_dst_rect.astype(np.int32)
+    cv2.fillConvexPoly(mask, tri_dst_rect_int, 255)
+
+    dst_slice = img_dst[dst_y:dst_y + dst_h, dst_x:dst_x + dst_w]
+    dst_slice[mask == 255] = warped[mask == 255]
+
+
 def warp_to_shape(img, points, target_points, triangles, canvas_size):
     #blank canvas sized to the midway shape, not this image's own size
     #everyone needs to land in the same coords so we can average them after
@@ -77,7 +109,7 @@ def warp_to_shape(img, points, target_points, triangles, canvas_size):
     #same triangle indices work on any point set, so grab this face's 3 pts
     #and the matching 3 pts in the target shape, warp that one piece over
     for tri in triangles:
-        warp_triangle(img, canvas, points[tri], target_points[tri])
+        warp_triangle_scratch(img, canvas, points[tri], target_points[tri])
 
     return canvas
 
